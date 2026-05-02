@@ -8,15 +8,17 @@ import {
   BarChart3,
   Map,
   AlertTriangle,
+  FilePlus,
 } from "lucide-react";
 import "./BottomNav.css";
 
 const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
-  { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={22} /> },
-  { id: "entities", label: "Entities", icon: <Building2 size={22} /> },
-  { id: "map", label: "Peta", icon: <Map size={22} /> },
-  { id: "analytics", label: "Analytics", icon: <BarChart3 size={22} /> },
-  { id: "triage", label: "Triage", icon: <AlertTriangle size={22} /> },
+  { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={20} /> },
+  { id: "entities", label: "Entities", icon: <Building2 size={20} /> },
+  { id: "map", label: "Peta", icon: <Map size={20} /> },
+  { id: "analytics", label: "Analytics", icon: <BarChart3 size={20} /> },
+  { id: "triage", label: "Triage", icon: <AlertTriangle size={20} /> },
+  { id: "input", label: "Daftar", icon: <FilePlus size={20} /> },
 ];
 
 export default function BottomNav({
