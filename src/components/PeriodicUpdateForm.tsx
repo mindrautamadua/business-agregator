@@ -25,10 +25,12 @@ const MONTHLY_STEPS = [
   { title: "Risiko & Isu", subtitle: "Kejadian & mitigasi", color: "#ef4444" },
 ];
 
-const QUARTERLY_EXTRA_STEPS = [
+// Triwulanan: jalur terpisah, fokus strategis (tidak mengulang bulanan)
+const QUARTERLY_STEPS = [
+  { title: "Ringkasan Kuartal", subtitle: "Kondisi & highlight Q ini", color: "#3b82f6" },
   { title: "Perubahan BMC", subtitle: "Update model bisnis", color: "#f59e0b" },
   { title: "Investasi & SDM", subtitle: "Aset & ketenagakerjaan", color: "#06b6d4" },
-  { title: "Digital & Strategi", subtitle: "Teknologi & rencana", color: "#a855f7" },
+  { title: "Digital & Strategi", subtitle: "Teknologi & rencana ke depan", color: "#a855f7" },
 ];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -296,9 +298,7 @@ export default function PeriodicUpdateForm({ onBack }: { onBack: () => void }) {
   const set = (field: keyof FormState, value: unknown) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
-  const steps = form.period_type === "bulanan"
-    ? MONTHLY_STEPS
-    : [...MONTHLY_STEPS, ...QUARTERLY_EXTRA_STEPS];
+  const steps = form.period_type === "bulanan" ? MONTHLY_STEPS : QUARTERLY_STEPS;
 
   const totalSteps = steps.length;
   const info = steps[step - 1];
@@ -319,95 +319,235 @@ export default function PeriodicUpdateForm({ onBack }: { onBack: () => void }) {
     : `${form.reporting_quarter || "—"} ${form.reporting_year}`;
 
   // ── Step Renders ─────────────────────────────────────────────
-  const renderStep = () => {
+  // ── Shared period picker (step 1 on both modes) ──────────────
+  const renderPeriodToggle = () => (
+    <div className="pu-period-card">
+      <div className="pu-period-type-toggle">
+        {(["bulanan", "triwulanan"] as PeriodType[]).map((t) => (
+          <button key={t} type="button"
+            className={`pu-type-btn ${form.period_type === t ? "active" : ""}`}
+            onClick={() => { set("period_type", t); setStep(1); }}>
+            {t === "bulanan" ? "Bulanan" : "Triwulanan"}
+          </button>
+        ))}
+      </div>
+      <PURow>
+        <FG label="Tahun">
+          <PUSelect value={form.reporting_year} onChange={(v) => set("reporting_year", v)}
+            options={YEARS.map((y) => ({ value: y, label: y }))} />
+        </FG>
+        <FG label={form.period_type === "bulanan" ? "Bulan" : "Kuartal"}>
+          {form.period_type === "bulanan" ? (
+            <PUSelect value={form.reporting_month} onChange={(v) => set("reporting_month", v)}
+              options={MONTHS.map((m) => ({ value: m, label: m }))} />
+          ) : (
+            <PUSelect value={form.reporting_quarter} onChange={(v) => set("reporting_quarter", v)}
+              options={QUARTERS.map((q) => ({ value: q, label: q }))} />
+          )}
+        </FG>
+      </PURow>
+    </div>
+  );
+
+  const renderStatusBlock = (highlightHint: string, showImprovementPlan = false) => (
+    <>
+      <FG label="Status Kondisi Bisnis">
+        <div className="pu-status-chips">
+          {["Sangat Baik", "Baik", "Stabil", "Menurun", "Kritis"].map((s) => {
+            const colors: Record<string, string> = {
+              "Sangat Baik": "#10b981", "Baik": "#06b6d4",
+              "Stabil": "#6366f1", "Menurun": "#f59e0b", "Kritis": "#ef4444",
+            };
+            return (
+              <button key={s} type="button"
+                className={`pu-status-chip ${form.business_status === s ? "active" : ""}`}
+                style={form.business_status === s ? {
+                  background: `${colors[s]}20`, borderColor: colors[s], color: colors[s],
+                } : undefined}
+                onClick={() => set("business_status", s)}>
+                {s}
+              </button>
+            );
+          })}
+        </div>
+      </FG>
+      <FG label="Self-Assessment Score (0–100)"
+        hint="Penilaian Anda secara keseluruhan terhadap kondisi bisnis periode ini">
+        <div className="pu-score-wrap">
+          <div className="pu-score-display" style={{
+            color: form.overall_condition_score >= 70 ? "#10b981"
+              : form.overall_condition_score >= 45 ? "#f59e0b" : "#ef4444",
+          }}>
+            {form.overall_condition_score}
+          </div>
+          <input type="range" min={0} max={100} className="pu-slider"
+            value={form.overall_condition_score}
+            onChange={(e) => set("overall_condition_score", Number(e.target.value))}
+            style={{
+              // @ts-expect-error CSS custom property
+              "--pct": `${form.overall_condition_score}%`,
+              "--clr": form.overall_condition_score >= 70 ? "#10b981"
+                : form.overall_condition_score >= 45 ? "#f59e0b" : "#ef4444",
+            }} />
+          <div className="pu-slider-marks">
+            <span>Kritis</span><span>Warning</span><span>Healthy</span>
+          </div>
+        </div>
+      </FG>
+      <FG label="Highlight Utama" hint={highlightHint}>
+        <PUTextarea value={form.key_highlight} onChange={(v) => set("key_highlight", v)}
+          placeholder="Mis: Peluncuran produk baru, rekor penjualan, kemitraan baru..." rows={3} />
+      </FG>
+      <FG label="Tantangan / Isu Utama">
+        <PUTextarea value={form.major_issue} onChange={(v) => set("major_issue", v)}
+          placeholder="Mis: Kenaikan bahan baku, penurunan permintaan..." rows={2} />
+      </FG>
+      {showImprovementPlan && (
+        <FG label="Rencana Strategis Kuartal Berikutnya"
+          hint="Target dan langkah utama yang direncanakan">
+          <PUTextarea value={form.improvement_plan} onChange={(v) => set("improvement_plan", v)}
+            placeholder="Mis: Ekspansi ke 2 kota, rekrut 5 sales, target revenue +15%..." rows={3} />
+        </FG>
+      )}
+    </>
+  );
+
+  // ── Quarterly steps 2–4 (shared JSX, dipanggil dari kedua renderer) ──
+  const renderBMCChanges = () => (
+    <>
+      <div className="pu-section-note">
+        Isi hanya jika ada perubahan. Kosongkan jika tidak ada perubahan pada blok tersebut.
+      </div>
+      <div className="pu-keu-group">
+        <p className="pu-group-label">Customer Segments</p>
+        <FG label="Segmen Baru yang Ditambahkan">
+          <PUTextarea value={form.new_segment_added} onChange={(v) => set("new_segment_added", v)}
+            placeholder="Mis: Mulai masuk segmen B2B, ekspansi ke luar Jawa..." />
+        </FG>
+        <FG label="Segmen yang Ditinggalkan">
+          <PUTextarea value={form.segment_removed} onChange={(v) => set("segment_removed", v)}
+            placeholder="Mis: Menghentikan layanan ke segmen premium..." />
+        </FG>
+      </div>
+      <div className="pu-keu-group">
+        <p className="pu-group-label">Channels</p>
+        <FG label="Channel Baru">
+          <PUTextarea value={form.new_channel_added} onChange={(v) => set("new_channel_added", v)}
+            placeholder="Mis: Masuk marketplace Tokopedia, buka cabang baru..." />
+        </FG>
+        <FG label="Channel yang Ditutup">
+          <PUTextarea value={form.channel_removed} onChange={(v) => set("channel_removed", v)}
+            placeholder="Mis: Menutup toko fisik di lokasi X..." />
+        </FG>
+      </div>
+      <div className="pu-keu-group">
+        <p className="pu-group-label">Produk / Layanan & Revenue</p>
+        <FG label="Produk / Layanan Baru">
+          <PUTextarea value={form.product_service_change} onChange={(v) => set("product_service_change", v)}
+            placeholder="Mis: Meluncurkan varian baru, menambah layanan konsultasi..." />
+        </FG>
+        <FG label="Revenue Stream Baru">
+          <PUTextarea value={form.new_revenue_stream} onChange={(v) => set("new_revenue_stream", v)}
+            placeholder="Mis: Mulai terima pendapatan dari afiliasi..." />
+        </FG>
+      </div>
+      <div className="pu-keu-group">
+        <p className="pu-group-label">Biaya</p>
+        <FG label="Kenaikan Biaya Signifikan">
+          <PUTextarea value={form.cost_increase_reason} onChange={(v) => set("cost_increase_reason", v)}
+            placeholder="Mis: Kenaikan harga bahan baku 20%, kenaikan biaya sewa..." />
+        </FG>
+      </div>
+    </>
+  );
+
+  const renderInvestment = () => (
+    <>
+      <div className="pu-keu-group">
+        <p className="pu-group-label">Investasi Aset</p>
+        <FG label="Aset Baru yang Dibeli">
+          <PUInput value={form.new_asset_purchased} onChange={(v) => set("new_asset_purchased", v)}
+            placeholder="Mis: Mesin produksi, kendaraan, peralatan" />
+        </FG>
+        <PURow>
+          <FG label="Tipe Aset">
+            <PUSelect value={form.asset_type} onChange={(v) => set("asset_type", v)}
+              options={[
+                { value: "Mesin", label: "Mesin & Peralatan" },
+                { value: "Kendaraan", label: "Kendaraan" },
+                { value: "Properti", label: "Properti / Bangunan" },
+                { value: "Teknologi", label: "Teknologi / Software" },
+                { value: "Inventaris", label: "Inventaris / Stok" },
+                { value: "Lainnya", label: "Lainnya" },
+              ]} />
+          </FG>
+          <FG label="Nilai Investasi (Rp)">
+            <PUInput value={form.investment_value} onChange={(v) => set("investment_value", v)}
+              placeholder="50.000.000" type="number" />
+          </FG>
+        </PURow>
+      </div>
+      <div className="pu-keu-group">
+        <p className="pu-group-label">Sumber Daya Manusia</p>
+        <PURow>
+          <FG label="Karyawan Baru (orang)">
+            <PUInput value={form.employee_added} onChange={(v) => set("employee_added", v)}
+              placeholder="3" type="number" />
+          </FG>
+          <FG label="Karyawan Keluar (orang)">
+            <PUInput value={form.employee_reduced} onChange={(v) => set("employee_reduced", v)}
+              placeholder="1" type="number" />
+          </FG>
+        </PURow>
+      </div>
+      <div className="pu-keu-group">
+        <p className="pu-group-label">Teknologi Baru</p>
+        <FG label="Teknologi / Sistem Baru yang Diadopsi">
+          <PUInput value={form.technology_adopted} onChange={(v) => set("technology_adopted", v)}
+            placeholder="Mis: Implementasi POS, sistem ERP, CRM baru..." />
+        </FG>
+      </div>
+    </>
+  );
+
+  const renderDigital = () => (
+    <>
+      <div className="pu-keu-group">
+        <p className="pu-group-label">Digital & Teknologi</p>
+        <FG label="Porsi Penjualan Digital (%)">
+          <PUInput value={form.digital_sales_percentage} onChange={(v) => set("digital_sales_percentage", v)}
+            placeholder="40" type="number" />
+        </FG>
+        <FG label="Sistem yang Digunakan">
+          <div className="pu-system-chips">
+            {["POS", "ERP", "CRM", "Marketplace", "Media Sosial", "Website"].map((s) => (
+              <button key={s} type="button"
+                className={`pu-system-chip ${form.system_used.includes(s) ? "active" : ""}`}
+                onClick={() => {
+                  const arr = form.system_used ? form.system_used.split(",").filter(Boolean) : [];
+                  const updated = arr.includes(s) ? arr.filter((x) => x !== s) : [...arr, s];
+                  set("system_used", updated.join(","));
+                }}>
+                {s}
+              </button>
+            ))}
+          </div>
+        </FG>
+        <FG label="Level Otomasi Operasional">
+          <Chips value={form.automation_level} onChange={(v) => set("automation_level", v)}
+            options={["Manual", "Semi-Otomatis", "Penuh Otomatis"]} color="#a855f7" />
+        </FG>
+      </div>
+    </>
+  );
+
+  // ── Monthly render (5 steps) ──────────────────────────────────
+  const renderMonthlyStep = () => {
     switch (step) {
-      // ── Step 1: Ringkasan ──
       case 1: return (
         <>
-          {/* Period selector */}
-          <div className="pu-period-card">
-            <div className="pu-period-type-toggle">
-              {(["bulanan", "triwulanan"] as PeriodType[]).map((t) => (
-                <button key={t} type="button"
-                  className={`pu-type-btn ${form.period_type === t ? "active" : ""}`}
-                  onClick={() => { set("period_type", t); setStep(1); }}>
-                  {t === "bulanan" ? "Bulanan" : "Triwulanan"}
-                </button>
-              ))}
-            </div>
-            <PURow>
-              <FG label="Tahun">
-                <PUSelect value={form.reporting_year} onChange={(v) => set("reporting_year", v)}
-                  options={YEARS.map((y) => ({ value: y, label: y }))} />
-              </FG>
-              <FG label={form.period_type === "bulanan" ? "Bulan" : "Kuartal"}>
-                {form.period_type === "bulanan" ? (
-                  <PUSelect value={form.reporting_month} onChange={(v) => set("reporting_month", v)}
-                    options={MONTHS.map((m) => ({ value: m, label: m }))} />
-                ) : (
-                  <PUSelect value={form.reporting_quarter} onChange={(v) => set("reporting_quarter", v)}
-                    options={QUARTERS.map((q) => ({ value: q, label: q }))} />
-                )}
-              </FG>
-            </PURow>
-          </div>
-
-          <FG label="Status Kondisi Bisnis">
-            <div className="pu-status-chips">
-              {["Sangat Baik", "Baik", "Stabil", "Menurun", "Kritis"].map((s) => {
-                const colors: Record<string, string> = {
-                  "Sangat Baik": "#10b981", "Baik": "#06b6d4",
-                  "Stabil": "#6366f1", "Menurun": "#f59e0b", "Kritis": "#ef4444",
-                };
-                return (
-                  <button key={s} type="button"
-                    className={`pu-status-chip ${form.business_status === s ? "active" : ""}`}
-                    style={form.business_status === s ? {
-                      background: `${colors[s]}20`,
-                      borderColor: colors[s],
-                      color: colors[s],
-                    } : undefined}
-                    onClick={() => set("business_status", s)}>
-                    {s}
-                  </button>
-                );
-              })}
-            </div>
-          </FG>
-
-          <FG label="Self-Assessment Score (0–100)"
-            hint="Penilaian Anda secara keseluruhan terhadap kondisi bisnis periode ini">
-            <div className="pu-score-wrap">
-              <div className="pu-score-display" style={{
-                color: form.overall_condition_score >= 70 ? "#10b981"
-                  : form.overall_condition_score >= 45 ? "#f59e0b" : "#ef4444"
-              }}>
-                {form.overall_condition_score}
-              </div>
-              <input type="range" min={0} max={100} className="pu-slider"
-                value={form.overall_condition_score}
-                onChange={(e) => set("overall_condition_score", Number(e.target.value))}
-                style={{
-                  // @ts-expect-error CSS custom property
-                  "--pct": `${form.overall_condition_score}%`,
-                  "--clr": form.overall_condition_score >= 70 ? "#10b981"
-                    : form.overall_condition_score >= 45 ? "#f59e0b" : "#ef4444",
-                }} />
-              <div className="pu-slider-marks">
-                <span>Kritis</span><span>Warning</span><span>Healthy</span>
-              </div>
-            </div>
-          </FG>
-
-          <FG label="Highlight Utama Periode Ini"
-            hint="Pencapaian atau momen penting bulan/kuartal ini">
-            <PUTextarea value={form.key_highlight} onChange={(v) => set("key_highlight", v)}
-              placeholder="Mis: Peluncuran produk baru, rekor penjualan, kemitraan baru..." rows={3} />
-          </FG>
-          <FG label="Tantangan / Isu Utama">
-            <PUTextarea value={form.major_issue} onChange={(v) => set("major_issue", v)}
-              placeholder="Mis: Kenaikan bahan baku, penurunan permintaan, masalah operasional..." rows={2} />
-          </FG>
+          {renderPeriodToggle()}
+          {renderStatusBlock("Pencapaian atau momen penting bulan ini")}
         </>
       );
 
@@ -618,225 +758,97 @@ export default function PeriodicUpdateForm({ onBack }: { onBack: () => void }) {
         </>
       );
 
-      // ── Step 6: Perubahan BMC (Triwulanan) ──
-      case 6: return (
-        <>
-          <div className="pu-section-note">
-            Isi hanya jika ada perubahan. Kosongkan jika tidak ada perubahan.
-          </div>
-          <div className="pu-keu-group">
-            <p className="pu-group-label">Customer Segments</p>
-            <FG label="Segmen Baru yang Ditambahkan">
-              <PUTextarea value={form.new_segment_added} onChange={(v) => set("new_segment_added", v)}
-                placeholder="Mis: Mulai masuk segmen B2B, ekspansi ke luar Jawa..." />
-            </FG>
-            <FG label="Segmen yang Ditinggalkan">
-              <PUTextarea value={form.segment_removed} onChange={(v) => set("segment_removed", v)}
-                placeholder="Mis: Menghentikan layanan ke segmen premium..." />
-            </FG>
-          </div>
-          <div className="pu-keu-group">
-            <p className="pu-group-label">Channels</p>
-            <FG label="Channel Baru">
-              <PUTextarea value={form.new_channel_added} onChange={(v) => set("new_channel_added", v)}
-                placeholder="Mis: Masuk marketplace Tokopedia, buka cabang baru..." />
-            </FG>
-            <FG label="Channel yang Ditutup">
-              <PUTextarea value={form.channel_removed} onChange={(v) => set("channel_removed", v)}
-                placeholder="Mis: Menutup toko fisik di lokasi X..." />
-            </FG>
-          </div>
-          <div className="pu-keu-group">
-            <p className="pu-group-label">Produk / Layanan & Revenue</p>
-            <FG label="Produk / Layanan Baru">
-              <PUTextarea value={form.product_service_change} onChange={(v) => set("product_service_change", v)}
-                placeholder="Mis: Meluncurkan produk varian baru, menambah layanan konsultasi..." />
-            </FG>
-            <FG label="Revenue Stream Baru">
-              <PUTextarea value={form.new_revenue_stream} onChange={(v) => set("new_revenue_stream", v)}
-                placeholder="Mis: Mulai terima pendapatan dari afiliasi..." />
-            </FG>
-          </div>
-          <div className="pu-keu-group">
-            <p className="pu-group-label">Biaya</p>
-            <FG label="Kenaikan Biaya Signifikan">
-              <PUTextarea value={form.cost_increase_reason} onChange={(v) => set("cost_increase_reason", v)}
-                placeholder="Mis: Kenaikan harga bahan baku 20%, kenaikan biaya sewa..." />
-            </FG>
-          </div>
-        </>
-      );
-
-      // ── Step 7: Investasi & SDM (Triwulanan) ──
-      case 7: return (
-        <>
-          <div className="pu-keu-group">
-            <p className="pu-group-label">Investasi Aset</p>
-            <FG label="Aset Baru yang Dibeli">
-              <PUInput value={form.new_asset_purchased} onChange={(v) => set("new_asset_purchased", v)}
-                placeholder="Mis: Mesin produksi, kendaraan, peralatan" />
-            </FG>
-            <PURow>
-              <FG label="Tipe Aset">
-                <PUSelect value={form.asset_type} onChange={(v) => set("asset_type", v)}
-                  options={[
-                    { value: "Mesin", label: "Mesin & Peralatan" },
-                    { value: "Kendaraan", label: "Kendaraan" },
-                    { value: "Properti", label: "Properti / Bangunan" },
-                    { value: "Teknologi", label: "Teknologi / Software" },
-                    { value: "Inventaris", label: "Inventaris / Stok" },
-                    { value: "Lainnya", label: "Lainnya" },
-                  ]} />
-              </FG>
-              <FG label="Nilai Investasi (Rp)">
-                <PUInput value={form.investment_value} onChange={(v) => set("investment_value", v)}
-                  placeholder="50.000.000" type="number" />
-              </FG>
-            </PURow>
-          </div>
-
-          <div className="pu-keu-group">
-            <p className="pu-group-label">Sumber Daya Manusia</p>
-            <PURow>
-              <FG label="Karyawan Baru (orang)">
-                <PUInput value={form.employee_added} onChange={(v) => set("employee_added", v)}
-                  placeholder="3" type="number" />
-              </FG>
-              <FG label="Karyawan Keluar (orang)">
-                <PUInput value={form.employee_reduced} onChange={(v) => set("employee_reduced", v)}
-                  placeholder="1" type="number" />
-              </FG>
-            </PURow>
-          </div>
-
-          <div className="pu-keu-group">
-            <p className="pu-group-label">Teknologi Baru</p>
-            <FG label="Teknologi / Sistem Baru yang Diadopsi">
-              <PUInput value={form.technology_adopted} onChange={(v) => set("technology_adopted", v)}
-                placeholder="Mis: Implementasi POS, sistem ERP, CRM baru..." />
-            </FG>
-          </div>
-        </>
-      );
-
-      // ── Step 8: Digital & Strategi (Triwulanan) ──
-      case 8: return (
-        <>
-          <div className="pu-keu-group">
-            <p className="pu-group-label">Digital & Teknologi</p>
-            <FG label="Porsi Penjualan Digital (%)">
-              <PUInput value={form.digital_sales_percentage} onChange={(v) => set("digital_sales_percentage", v)}
-                placeholder="40" type="number" />
-            </FG>
-            <FG label="Sistem yang Digunakan">
-              <div className="pu-system-chips">
-                {["POS", "ERP", "CRM", "Marketplace", "Media Sosial", "Website"].map((s) => (
-                  <button key={s} type="button"
-                    className={`pu-system-chip ${form.system_used.includes(s) ? "active" : ""}`}
-                    onClick={() => {
-                      const arr = form.system_used ? form.system_used.split(",").filter(Boolean) : [];
-                      const updated = arr.includes(s) ? arr.filter((x) => x !== s) : [...arr, s];
-                      set("system_used", updated.join(","));
-                    }}>
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </FG>
-            <FG label="Level Otomasi Operasional">
-              <Chips value={form.automation_level} onChange={(v) => set("automation_level", v)}
-                options={["Manual", "Semi-Otomatis", "Penuh Otomatis"]} color="#a855f7" />
-            </FG>
-          </div>
-
-          <div className="pu-keu-group">
-            <p className="pu-group-label">Rencana Strategis</p>
-            <FG label="Rencana Perbaikan & Target Kuartal Berikutnya"
-              hint="Apa yang akan dilakukan untuk meningkatkan kinerja?">
-              <PUTextarea value={form.improvement_plan} onChange={(v) => set("improvement_plan", v)}
-                placeholder="Mis: Target revenue naik 15%, ekspansi ke 2 kota baru, rekrut 5 sales..." rows={4} />
-            </FG>
-          </div>
-
-          {/* Health Index Preview */}
-          <div className="pu-health-preview">
-            <p className="pu-health-title">Health Index Prediksi</p>
-            <div className="pu-health-score" style={{
-              color: health.category === "Healthy" ? "#10b981"
-                : health.category === "Warning" ? "#f59e0b" : "#ef4444"
-            }}>
-              {health.total}
-              <span className="pu-health-cat" style={{
-                background: health.category === "Healthy" ? "#10b98120"
-                  : health.category === "Warning" ? "#f59e0b20" : "#ef444420",
-                color: health.category === "Healthy" ? "#10b981"
-                  : health.category === "Warning" ? "#f59e0b" : "#ef4444",
-              }}>{health.category}</span>
-            </div>
-            <div className="pu-health-bars">
-              {[
-                { label: "Financial", val: health.financial, max: 30, color: "#10b981" },
-                { label: "Operational", val: health.operational, max: 25, color: "#3b82f6" },
-                { label: "Customer", val: health.customer, max: 20, color: "#8b5cf6" },
-                { label: "Growth", val: health.growth, max: 15, color: "#f59e0b" },
-                { label: "Risk", val: health.risk, max: 10, color: "#ef4444" },
-              ].map((b) => (
-                <div key={b.label} className="pu-hb-row">
-                  <span className="pu-hb-label">{b.label}</span>
-                  <div className="pu-hb-track">
-                    <div className="pu-hb-fill"
-                      style={{ width: `${(b.val / b.max) * 100}%`, background: b.color }} />
-                  </div>
-                  <span className="pu-hb-val" style={{ color: b.color }}>
-                    {b.val}/{b.max}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
-      );
-
       default: return null;
     }
   };
 
+  // ── Quarterly render (4 steps — fokus strategis, tidak ulang bulanan) ───────
+  const renderQuarterlyStep = () => {
+    switch (step) {
+      case 1: return (
+        <>
+          {renderPeriodToggle()}
+          {renderStatusBlock(
+            "Pencapaian atau keputusan strategis penting kuartal ini",
+            true // tampilkan improvement_plan di step 1 quarterly
+          )}
+        </>
+      );
+      case 2: return renderBMCChanges();
+      case 3: return renderInvestment();
+      case 4: return renderDigital();
+      default: return null;
+    }
+  };
+
+  const renderStep = () =>
+    form.period_type === "bulanan" ? renderMonthlyStep() : renderQuarterlyStep();
+
   // ── Success Screen ────────────────────────────────────────────
   if (submitted) {
+    const isMonthly = form.period_type === "bulanan";
     const hCategory = health.category;
     const hColor = hCategory === "Healthy" ? "#10b981" : hCategory === "Warning" ? "#f59e0b" : "#ef4444";
+
     return (
       <div className="pu-form">
         <div className="pu-success anim-scale">
-          <div className="pu-success-glow" style={{ background: `radial-gradient(circle, ${hColor}18 0%, transparent 70%)` }} />
-          <div className="pu-success-icon" style={{ background: `${hColor}18`, color: hColor, boxShadow: `0 0 40px ${hColor}40` }}>
+          <div className="pu-success-glow" style={{ background: `radial-gradient(circle, ${isMonthly ? hColor : "#a855f7"}18 0%, transparent 70%)` }} />
+          <div className="pu-success-icon" style={{
+            background: `${isMonthly ? hColor : "#a855f7"}18`,
+            color: isMonthly ? hColor : "#a855f7",
+            boxShadow: `0 0 40px ${isMonthly ? hColor : "#a855f7"}40`,
+          }}>
             <CheckCircle2 size={44} />
           </div>
-          <h2>Update {form.period_type === "bulanan" ? "Bulanan" : "Triwulanan"} Tersimpan!</h2>
+          <h2>Update {isMonthly ? "Bulanan" : "Triwulanan"} Tersimpan!</h2>
           <p className="pu-success-period">{periodLabel}</p>
 
-          <div className="pu-success-health" style={{ borderColor: `${hColor}30`, background: `${hColor}08` }}>
-            <p className="pu-sh-label">Health Index Periode Ini</p>
-            <div className="pu-sh-score" style={{ color: hColor }}>{health.total}</div>
-            <div className="pu-sh-cat" style={{ background: `${hColor}20`, color: hColor }}>{hCategory}</div>
-            <div className="pu-sh-bars">
-              {[
-                { label: "Financial", val: health.financial, max: 30, color: "#10b981" },
-                { label: "Operational", val: health.operational, max: 25, color: "#3b82f6" },
-                { label: "Customer", val: health.customer, max: 20, color: "#8b5cf6" },
-                { label: "Growth", val: health.growth, max: 15, color: "#f59e0b" },
-                { label: "Risk", val: health.risk, max: 10, color: "#ef4444" },
-              ].map((b) => (
-                <div key={b.label} className="pu-sh-bar-row">
-                  <span>{b.label}</span>
-                  <div className="pu-sh-bar-track">
-                    <div style={{ width: `${(b.val / b.max) * 100}%`, background: b.color, height: "100%", borderRadius: 99 }} />
+          {/* Health index hanya untuk bulanan — data finansial tersedia */}
+          {isMonthly && (
+            <div className="pu-success-health" style={{ borderColor: `${hColor}30`, background: `${hColor}08` }}>
+              <p className="pu-sh-label">Health Index Periode Ini</p>
+              <div className="pu-sh-score" style={{ color: hColor }}>{health.total}</div>
+              <div className="pu-sh-cat" style={{ background: `${hColor}20`, color: hColor }}>{hCategory}</div>
+              <div className="pu-sh-bars">
+                {[
+                  { label: "Financial", val: health.financial, max: 30, color: "#10b981" },
+                  { label: "Operational", val: health.operational, max: 25, color: "#3b82f6" },
+                  { label: "Customer", val: health.customer, max: 20, color: "#8b5cf6" },
+                  { label: "Growth", val: health.growth, max: 15, color: "#f59e0b" },
+                  { label: "Risk", val: health.risk, max: 10, color: "#ef4444" },
+                ].map((b) => (
+                  <div key={b.label} className="pu-sh-bar-row">
+                    <span>{b.label}</span>
+                    <div className="pu-sh-bar-track">
+                      <div style={{ width: `${(b.val / b.max) * 100}%`, background: b.color, height: "100%", borderRadius: 99 }} />
+                    </div>
+                    <span style={{ color: b.color, fontSize: 11, fontWeight: 700 }}>{b.val}</span>
                   </div>
-                  <span style={{ color: b.color, fontSize: 11, fontWeight: 700 }}>{b.val}</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Quarterly: tampilkan ringkasan strategis saja */}
+          {!isMonthly && (
+            <div className="pu-success-health" style={{ borderColor: "#a855f730", background: "#a855f708" }}>
+              <p className="pu-sh-label">Update Strategis Tersimpan</p>
+              <div className="pu-quarterly-summary">
+                {[
+                  { label: "Perubahan BMC", done: !!(form.new_segment_added || form.new_channel_added || form.new_revenue_stream || form.product_service_change) },
+                  { label: "Investasi & SDM", done: !!(form.investment_value || form.employee_added || form.technology_adopted) },
+                  { label: "Digital & Teknologi", done: !!(form.digital_sales_percentage || form.system_used || form.automation_level) },
+                  { label: "Rencana Strategis", done: !!form.improvement_plan },
+                ].map((item) => (
+                  <div key={item.label} className="pu-qs-item" style={{ color: item.done ? "#a855f7" : "var(--text-muted)" }}>
+                    <CheckCircle2 size={13} style={{ opacity: item.done ? 1 : 0.3 }} />
+                    <span>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <button className="pu-btn-new" onClick={() => { setForm(INITIAL); setStep(1); setSubmitted(false); }}>
             Input Periode Baru
