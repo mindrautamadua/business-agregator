@@ -6,53 +6,136 @@ import {
   TrendingUp,
   TrendingDown,
   Activity,
-  DollarSign,
   Building2,
-  HeartPulse,
   ChevronRight,
   Bell,
   Search,
   Zap,
   ShieldAlert,
   Rocket,
+  BarChart3,
 } from "lucide-react";
 import "./DashboardTab.css";
 
+type KPIItem = {
+  label: string; value: string; sub?: string;
+  change?: string; trend?: "up" | "down";
+  icon: React.ReactNode; color: string; bg: string;
+};
+
+// ── Portfolio trend — 6 bulan terakhir ──────────────────────────
+const portfolioTrend = {
+  months: ["Des", "Jan", "Feb", "Mar", "Apr", "Mei"],
+  values:  [52.1,  55.8,  58.3,  63.2,  67.9,  71.8],
+};
+
+// ── Risk distribution ────────────────────────────────────────────
+const riskDist = [
+  { label: "Healthy",  count: 3, color: "#10b981" },
+  { label: "Warning",  count: 2, color: "#f59e0b" },
+  { label: "Critical", count: 2, color: "#ef4444" },
+];
+const riskTotal = riskDist.reduce((s, r) => s + r.count, 0);
+
+// ── Sector performance ───────────────────────────────────────────
+type SectorStatus = "healthy" | "warning" | "critical";
+const sectorGrid: { name: string; count: number; growth: string; status: SectorStatus }[] = [
+  { name: "Tech",       count: 2, growth: "+33.3%", status: "warning"  },
+  { name: "F&B",        count: 2, growth: "+12.4%", status: "healthy"  },
+  { name: "Retail",     count: 1, growth: "−3.2%",  status: "critical" },
+  { name: "Manufaktur", count: 1, growth: "+8.5%",  status: "warning"  },
+  { name: "Service",    count: 2, growth: "+18.7%", status: "healthy"  },
+  { name: "Agri",       count: 1, growth: "+5.1%",  status: "warning"  },
+];
+const sectorStatusColor: Record<SectorStatus, { text: string; bg: string; border: string }> = {
+  healthy:  { text: "#10b981", bg: "rgba(16,185,129,0.1)",  border: "rgba(16,185,129,0.25)"  },
+  warning:  { text: "#f59e0b", bg: "rgba(245,158,11,0.1)",  border: "rgba(245,158,11,0.25)"  },
+  critical: { text: "#ef4444", bg: "rgba(239,68,68,0.1)",   border: "rgba(239,68,68,0.25)"   },
+};
+
+// ── Sparkline SVG component ──────────────────────────────────────
+function Sparkline({ values, months, color = "#10b981" }: {
+  values: number[]; months: string[]; color?: string;
+}) {
+  const W = 280; const H = 44; const pad = 6;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const pts = values.map((v, i) => ({
+    x: (i / (values.length - 1)) * W,
+    y: H - pad - ((v - min) / range) * (H - pad * 2),
+  }));
+  const polyline = pts.map((p) => `${p.x},${p.y}`).join(" ");
+  const area = `${pts[0].x},${H} ${polyline} ${pts[pts.length - 1].x},${H}`;
+  const last = pts[pts.length - 1];
+  const prev = pts[pts.length - 2];
+  const rising = last.y <= prev.y; // lower y = higher value
+
+  return (
+    <div className="sparkline-wrap">
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H}
+        preserveAspectRatio="none" className="sparkline-svg">
+        <defs>
+          <linearGradient id="spkGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.35" />
+            <stop offset="100%" stopColor={color} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <polygon points={area} fill="url(#spkGrad)" />
+        <polyline points={polyline} fill="none" stroke={color}
+          strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx={last.x} cy={last.y} r="4" fill={color} />
+        <circle cx={last.x} cy={last.y} r="7" fill={color} fillOpacity="0.2" />
+      </svg>
+      <div className="sparkline-months">
+        {months.map((m) => <span key={m}>{m}</span>)}
+      </div>
+      <div className="sparkline-meta">
+        <span className="sparkline-range">
+          {min.toFixed(1)}M – {max.toFixed(1)}M
+        </span>
+        <span className="sparkline-trend" style={{ color: rising ? "#10b981" : "#ef4444" }}>
+          {rising ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+          {rising ? "Tren Naik" : "Tren Turun"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 /* ── static mock data (from panduan.md) ── */
-const KPI = [
-  {
-    label: "Portfolio Value",
-    value: "Rp 71.8M",
-    change: "+17.7%",
-    trend: "up" as const,
-    icon: <DollarSign size={18} />,
-    color: "var(--accent-primary)",
-    bg: "var(--accent-glow)",
-  },
+const KPI: KPIItem[] = [
   {
     label: "Active Entities",
     value: "3",
-    sub: "of 5 total",
+    sub: "dari 5 total",
     icon: <Building2 size={18} />,
     color: "var(--blue)",
     bg: "var(--blue-glow)",
   },
   {
-    label: "Avg Growth",
-    value: "17.7%",
-    change: "vs Q1 2025",
-    trend: "up" as const,
+    label: "Entities at Risk",
+    value: "2",
+    sub: "Critical / Warning",
+    icon: <ShieldAlert size={18} />,
+    color: "var(--red)",
+    bg: "var(--red-glow)",
+  },
+  {
+    label: "Top Sektor",
+    value: "Tech",
+    sub: "+42.1% growth",
     icon: <TrendingUp size={18} />,
     color: "var(--amber)",
     bg: "var(--amber-glow)",
   },
   {
-    label: "Health Index",
-    value: "61",
+    label: "Avg BMC Score",
+    value: "73",
     sub: "/ 100",
-    icon: <HeartPulse size={18} />,
-    color: "var(--red)",
-    bg: "var(--red-glow)",
+    icon: <BarChart3 size={18} />,
+    color: "var(--accent-primary)",
+    bg: "var(--accent-glow)",
   },
 ];
 
@@ -183,6 +266,17 @@ export default function DashboardTab({
         </div>
       </section>
 
+      {/* Portfolio Trend Sparkline */}
+      <section className="dash-section anim-slide d2">
+        <div className="sparkline-card card">
+          <div className="sparkline-header">
+            <span className="sparkline-title">Tren Portofolio</span>
+            <span className="sparkline-period">6 Bulan Terakhir</span>
+          </div>
+          <Sparkline values={portfolioTrend.values} months={portfolioTrend.months} />
+        </div>
+      </section>
+
       {/* KPI Grid */}
       <section className="dash-section">
         <div className="section-head anim-fade d2">
@@ -221,6 +315,58 @@ export default function DashboardTab({
               )}
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Risk Distribution Bar */}
+      <section className="dash-section anim-slide d4">
+        <div className="section-head">
+          <h3 className="section-title">Distribusi Risiko</h3>
+          <span className="risk-total-label">{riskTotal} entitas</span>
+        </div>
+        <div className="risk-dist-card card">
+          <div className="risk-bar-track">
+            {riskDist.map((r) => (
+              <div key={r.label} className="risk-bar-seg"
+                style={{ width: `${(r.count / riskTotal) * 100}%`, background: r.color }}
+              />
+            ))}
+          </div>
+          <div className="risk-legend">
+            {riskDist.map((r) => (
+              <div key={r.label} className="risk-legend-item">
+                <span className="risk-legend-dot" style={{ background: r.color }} />
+                <span className="risk-legend-label">{r.label}</span>
+                <span className="risk-legend-count" style={{ color: r.color }}>{r.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Sector Performance Grid */}
+      <section className="dash-section anim-slide d5">
+        <div className="section-head">
+          <h3 className="section-title">Kinerja Sektor</h3>
+          <span className="risk-total-label">{sectorGrid.length} sektor</span>
+        </div>
+        <div className="sector-grid">
+          {sectorGrid.map((s) => {
+            const cfg = sectorStatusColor[s.status];
+            return (
+              <div key={s.name} className="sector-tile"
+                style={{ background: cfg.bg, borderColor: cfg.border }}>
+                <span className="sector-tile-name">{s.name}</span>
+                <span className="sector-tile-growth" style={{ color: cfg.text }}>
+                  {s.growth}
+                </span>
+                <span className="sector-tile-count">{s.count} entitas</span>
+                <span className="sector-tile-status" style={{ color: cfg.text }}>
+                  {s.status === "healthy" ? "●" : s.status === "warning" ? "◑" : "○"} {s.status}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </section>
 

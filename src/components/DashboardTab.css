@@ -339,6 +339,155 @@
   flex-shrink: 0;
 }
 
+/* ── Portfolio Trend Sparkline ── */
+.sparkline-card {
+  padding: 16px 16px 12px;
+}
+.sparkline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.sparkline-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.sparkline-period {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.sparkline-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sparkline-svg {
+  display: block;
+  overflow: visible;
+}
+.sparkline-months {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+.sparkline-months span {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.sparkline-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 2px;
+}
+.sparkline-range {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.sparkline-trend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ── Risk Distribution Bar ── */
+.risk-total-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.risk-dist-card {
+  padding: 16px;
+}
+.risk-bar-track {
+  display: flex;
+  height: 10px;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  gap: 2px;
+  margin-bottom: 14px;
+}
+.risk-bar-seg {
+  border-radius: var(--radius-full);
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  min-width: 4px;
+}
+.risk-legend {
+  display: flex;
+  justify-content: space-between;
+}
+.risk-legend-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+}
+.risk-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.risk-legend-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.risk-legend-count {
+  font-size: 18px;
+  font-weight: 800;
+  font-family: 'Outfit', sans-serif;
+  line-height: 1;
+}
+
+/* ── Sector Performance Grid ── */
+.sector-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+.sector-tile {
+  border-radius: var(--radius-sm);
+  border: 1px solid;
+  padding: 11px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: transform 0.2s;
+}
+.sector-tile:active {
+  transform: scale(0.96);
+}
+.sector-tile-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.sector-tile-growth {
+  font-size: 13px;
+  font-weight: 800;
+  font-family: 'Outfit', sans-serif;
+  line-height: 1.2;
+}
+.sector-tile-count {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-top: 2px;
+}
+.sector-tile-status {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: capitalize;
+  letter-spacing: 0.03em;
+}
+
 /* ── Intelligence Loop ── */
 .loop-flow {
   background: var(--bg-card);
